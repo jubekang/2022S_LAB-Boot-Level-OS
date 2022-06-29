@@ -78,13 +78,28 @@ TestA20:
 SetA20LineDone:
     xor ax, ax
     mov es, ax
-    mov ah,0x13
-    mov al,1
-    mov bx,0xc
-    xor dx,dx
-    mov bp,Message
-    mov cx,MessageLen
-    int 0x10
+
+SetVideoMode:
+    mov ax,3    ; ah 0 : viedo mode / al 3 : text mode
+    int 0x10    ; text mode
+    
+    ;   two byte per character 
+    ;   high : Character / Low : Background | Foreground color
+
+    mov si,Message  ; save address of characters
+    mov ax,0xb800   ; text mode address 
+    mov es,ax       ;
+    xor di,di       ;
+    mov cx,MessageLen   
+
+PrintMessage:
+    mov al,[si]             ; copy the character of message
+    mov [es:di],al          ; map to the screen
+    mov byte[es:di+1],0xc   ; color
+
+    add di,2                ; character takes 2 bytes
+    add si,1                ; character stored in message takes 1 bytes
+    loop PrintMessage
 
 ReadError:
 NotSupport:
@@ -93,6 +108,6 @@ End:
     jmp End
 
 DriveId:    db 0
-Message:    db "a20 line is on"
+Message:    db "Text mode is set"
 MessageLen: equ $-Message
 ReadPacket: times 16 db 0
