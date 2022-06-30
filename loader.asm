@@ -1,15 +1,6 @@
 [BITS 16]
 [ORG 0x7e00]    ; 0x7c00 + 0x200(512byte)
 
-
-;   strucure of memory block(20) when int 15
-;   offset  | field
-;
-;   0       | base address(8)  
-;   8       | length(8)
-;   16      | type(4)
-
-
 start:  ; use same print function for simple program
     mov [DriveId],dl
 
@@ -80,26 +71,21 @@ SetA20LineDone:
     mov es, ax
 
 SetVideoMode:
-    mov ax,3    ; ah 0 : viedo mode / al 3 : text mode
-    int 0x10    ; text mode
-    
-    ;   two byte per character 
-    ;   high : Character / Low : Background | Foreground color
+    mov ax,3        ; ah 0 : viedo mode / al 3 : text mode
+    int 0x10        ; text mode
 
-    mov si,Message  ; save address of characters
-    mov ax,0xb800   ; text mode address 
-    mov es,ax       ;
-    xor di,di       ;
-    mov cx,MessageLen   
+    ; Set protect mode 
+    cli             ; clear interrupt flag
+    lgdt [Gdt32Ptr] ; load gdt ptr -> 
+    lidt [Idt32Ptr] ; load idt ptr => invaild here => reset
 
-PrintMessage:
-    mov al,[si]             ; copy the character of message
-    mov [es:di],al          ; map to the screen
-    mov byte[es:di+1],0xc   ; color
+    mov eax,cr0     ; Entering protect mode
+    or eax,1        ; Set first bit of cr0 to 1
+    mov cr0,eax     ;
 
-    add di,2                ; character takes 2 bytes
-    add si,1                ; character stored in message takes 1 bytes
-    loop PrintMessage
+    jmp 8:PMEntry   ; To load code segment descriptor to cs register
+                    ; 8 : index of selector
+                    ; index = 00001 | TI = 0 | RPL = 00(== DPL) -> 8
 
 ReadError:
 NotSupport:
@@ -107,7 +93,58 @@ End:
     hlt
     jmp End
 
+[BITS 32]
+
+PMEntry:
+    mov ax,0x10 ; init all segment register
+    mov ds,ax
+    mov es,ax
+    mov ss,ax
+    mov esp,0x7c00
+
+    mov byte[0xb8000],'P'   ; print 'P'
+    mov byte[0xb8001],0xc
+
+PEnd:
+    hlt
+    jmp PEnd
+
 DriveId:    db 0
-Message:    db "Text mode is set"
-MessageLen: equ $-Message
 ReadPacket: times 16 db 0
+
+Gdt32:
+    dq 0        ; First Discriptor to NULL
+
+Code32:         ; Second Discriptor
+    dw 0xffff   ; segment size -> set to maximum
+    dw 0        ; base address -> 0 -> code segment start from 0
+    db 0        ; base address -> 0
+
+    db 0x9a     ; P = 1 | DPL = 00 | S = 1 | TYPE = 1010 -> 0x9a
+                ; P(1) : should be 1 when we load the descriptor / OW exception 
+                ; DPL(00) : privilege level of the segment
+                ; S(1) : code or data segment / or system segment
+                ; TYPE(1010 or 10) : non-conforming code segment
+
+    db 0xcf     ; G = 1 | D = 1 | 0 | A = 0 | LIMIT = 1111 -> 0xcf
+                ; G(1) : Granularity bit -> size field scaled by 4KB => 4GB
+                ; D(1) : 32 or 16 -> 32 here
+                ; A(0) : used by system software
+                ; LIMIT(1111) : maximum size
+    db 0        ; 8 bits of base address
+
+Data32:         ; Third Discriptor
+    dw 0xffff
+    dw 0
+    db 0
+    db 0x92     ; TYPE is only difference : 1010 -> 0010 => readable and writeable segment
+    db 0xcf
+    db 0
+
+Gdt32Len:   equ $-Gdt32
+    
+Gdt32Ptr:   dw Gdt32Len-1
+            dd Gdt32
+
+Idt32Ptr:   dw 0    ; invaild Ptr 0
+            dd 0    ; To make non-recoverable hadeware error
