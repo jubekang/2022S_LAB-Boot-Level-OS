@@ -102,12 +102,53 @@ PMEntry:
     mov ss,ax
     mov esp,0x7c00
 
-    mov byte[0xb8000],'P'   ; print 'P'
-    mov byte[0xb8001],0xc
+    ;----------------------- : find a free memory area and inititialize the paging structure
+    cld
+    mov edi,0x80000
+    xor eax,eax
+    mov ecx,0x10000/4
+    rep stosd
+    
+    mov dword[0x80000],0x81007
+    mov dword[0x81000],10000111b
+    ;-----------------------
+
+    lgdt [Gdt64Ptr]     ; set gdt pointer
+
+    mov eax,cr4         
+    or eax,(1<<5)       ; set physical address extension bit(5)
+    mov cr4,eax
+
+    mov eax,0x80000     ; set cr3 to 0x80000 -> using physical address
+    mov cr3,eax
+
+    mov ecx,0xc0000080  
+    rdmsr               ; read msr : ret value is eax
+    or eax,(1<<8)       ; enable long mode
+    wrmsr               ; write msr
+
+    mov eax,cr0
+    or eax,(1<<31)      ; enable page setting -> virtual memory from here
+    mov cr0,eax
+
+    jmp 8:LMEntry       ; To load code segment descriptor to cs register
+                        ; 8 : index of selector
+                        ; index = 00001 | TI = 0 | RPL = 00(== DPL) -> 8
 
 PEnd:
     hlt
     jmp PEnd
+
+[BITS 64]
+LMEntry:
+    mov rsp,0x7c00      ; init stack pointer
+
+    mov byte[0xb8000],'L'
+    mov byte[0xb8001],0xc
+
+LEnd:
+    hlt
+    jmp LEnd
 
 DriveId:    db 0
 ReadPacket: times 16 db 0
@@ -148,3 +189,19 @@ Gdt32Ptr:   dw Gdt32Len-1
 
 Idt32Ptr:   dw 0    ; invaild Ptr 0
             dd 0    ; To make non-recoverable hadeware error
+
+Gdt64:
+    dq 0
+    dq 0x0020980000000000
+    ; D = 0 | L = 1 | P = 1 | DPL = 00 | 1 | 1 | C = 0
+    ; C(0) : non/conforming bit
+    ; 1's : code segment descriptor
+    ; DPL : level 0
+    ; Present bit : 1 - 64bit / 0 - compatibility mode
+    ; D : 0 when long bit is set
+    ; if there is no plan to ring3, don't need data segment
+
+Gdt64Len: equ $-Gdt64
+
+Gdt64Ptr: dw Gdt64Len-1
+          dd Gdt64
