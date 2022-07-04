@@ -140,17 +140,16 @@ PEnd:
     jmp PEnd
 
 [BITS 64]
-LMEntry:
-    mov rsp,0x7c00  ; init stack pointer
+LMEntry:                ; Start of LONG_MODE
+    mov rsp,0x7c00      ; init stack pointer
 
-    cld             
-    mov rdi,0x200000         
-    mov rsi,0x10000
-    mov rcx,51200/8
-    rep movsq
+    cld                 ; clear direction flag : data is copied to forward direction
+    mov rdi,0x200000    ; destination address is stored in rdi
+    mov rsi,0x10000     ; source address is stored in rsi
+    mov rcx,51200/8     ; rcx as a counter => copy 51200 q-word byte(read 100 sectors which is 512B)
+    rep movsq           ; kernel is in 0x10000 and copied to 0x2000000
 
-    jmp 0x200000
-    
+    jmp 0x200000        ; jump to kernel
 
 LEnd:
     hlt
