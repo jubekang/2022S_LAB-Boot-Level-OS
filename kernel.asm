@@ -31,44 +31,63 @@ KernelEntry:
     mov byte[0xb8000],'K'
     mov byte[0xb8001],0xc
 
-InitPIT:        ; Programmable Interval Timer
-    mov al,(1<<2)|(3<<4)
-    out 0x43,al
+InitPIT:                    ; Programmable Interval Timer ; only using channel 0
+    mov al,(1<<2)|(3<<4)    ; setting => 76 - channel | 54 - access mode | 321 - operating mode | 0 - binary/BCD => 00 11 010 0
+    out 0x43,al             ; address of mode command register is 43 => use "out" command to write the register
 
-    mov ax,11931
+    mov ax,11931            ; 1193182/100 -> to make 100Hz
+    out 0x40,al             ; address of data register
+    mov al,ah               
     out 0x40,al
-    mov al,ah
-    out 0x40,al
 
-InitPIC:        ; Programmable Interval Controller
-    mov al,0x11 ; Initialization Command Word
-    out 0x20,al ; master
-    out 0xa0,al ; slave
+InitPIC:        ; Programmable Interval Controller(PIT use IRQ0)
+    mov al,0x11 ; Initialization Command Word => bit 0 - we use last init command word / bit 4 - we write following three init command ??
+    out 0x20,al ; command register of master
+    out 0xa0,al ; command register of slave
+ 
+    mov al,32   ; starting vector number 32 => IRQ 0 = 32 / IRQ 1 = 33 ... [32-255]
+    out 0x21,al ; data register of master
+    mov al,40   ; starting vector number 40(39 for IRQ 7 of slave)
+    out 0xa1,al ; data register of slave
 
-    mov al,32   ; vector 32
+    mov al,4    ; IRQ 2 is used in master (bit 2)
     out 0x21,al
-    mov al,40
+    mov al,2    ; identification in slave(2)
     out 0xa1,al
 
-    mov al,4
-    out 0x21,al
-    mov al,2
-    out 0xa1,al
-
-    mov al,1
+    mov al,1    ; end of interrupt
     out 0x21,al
     out 0xa1,al
 
-    mov al,11111110b
+    mov al,11111110b    ; only IRQ0 is used(fire interrupt)
     out 0x21,al
     mov al,11111111b
     out 0xa1,al
 
     sti
 
+    push 0x18|3     ; ss selector : RPL is 3 | stack segment selector is 18
+    push 0x7c00     ; RSP
+    push 0x2        ; Rflags : set bit 1 to 1
+    push 0x10|3     ; cs selector RPL is 3 | code segment selector is 10
+    push UserEntry  ; RIP : return address
+    iretq           ; interrupt return
+
 End:
     hlt
     jmp End
+
+UserEntry:
+    mov ax,cs   ; check lower 2 bit of cs to check RPL
+    and al,11b
+    cmp al,3    ; check whether RPL is 3
+    jne UEnd    ; if not in ring 3, jump
+
+    mov byte[0xb8010],'3'   ; in Ring3
+    mov byte[0xb8011],0xe
+
+UEnd:
+    jmp UEnd
 
 Handler0:
 
@@ -154,6 +173,8 @@ Timer:
 Gdt64:
     dq 0
     dq 0x0020980000000000
+    dq 0x0020f80000000000   ; DPL 00 -> 11
+    dq 0x0020f20000000000   ; DPL 00 -> 11 / present bit 1 -> data seegment descriptor
 
 Gdt64Len: equ $-Gdt64
 
