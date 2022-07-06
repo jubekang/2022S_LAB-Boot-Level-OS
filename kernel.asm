@@ -1,23 +1,56 @@
 [BITS 64]
 [ORG 0x200000]
 
+%macro pushR 0
+    push rax
+    push rbx  
+    push rcx
+    push rdx  	  
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+%endmacro
+
+%macro popR 0
+    pop	r15
+    pop	r14
+    pop	r13
+    pop	r12
+    pop	r11
+    pop	r10
+    pop	r9
+    pop	r8
+    pop	rbp
+    pop	rdi
+    pop	rsi  
+    pop	rdx
+    pop	rcx
+    pop	rbx
+    pop	rax
+%endmacro
+
+
 start:
     mov rdi,Idt         ; hold address of IDT desc
     
     mov rax,Handler0    ; stores the offset of handler0
-    mov [rdi],ax        ; copy handler0's address to Idt
-    shr rax,16
-    mov [rdi+6],ax
-    shr rax,16
-    mov [rdi+8],eax
+    call SetHandler
 
     mov rax,Timer       ; set Interrupts 32 handler desc
-    add rdi,32*16
-    mov [rdi],ax
-    shr rax,16
-    mov [rdi+6],ax
-    shr rax,16
-    mov [rdi+8],eax
+    mov rdi,Idt+32*16
+    call SetHandler
+
+    mov rdi,Idt+32*16+7*16  ; add 7*16 => 7 for vector num of IRQ7, each entry is 16B
+    mov rax, SIRQ
+    call SetHandler
 
     lgdt [Gdt64Ptr]     ; load Gdt pointer
     lidt [IdtPtr]
@@ -92,6 +125,14 @@ End:
     hlt
     jmp End
 
+SetHandler:
+    mov [rdi],ax        ; copy handler0's address to Idt
+    shr rax,16
+    mov [rdi+6],ax
+    shr rax,16
+    mov [rdi+8],eax
+    ret
+
 UserEntry:
     ; mov ax,cs   ; check lower 2 bit of cs to check DPL
     ; and al,11b
@@ -106,85 +147,37 @@ UEnd:
 
 Handler0:
 
-    ; saving all registers
-    push rax
-    push rbx  
-    push rcx
-    push rdx  	  
-    push rsi
-    push rdi
-    push rbp
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
-    
+    pushR
     mov byte[0xb8000],'D'
     mov byte[0xb8001],0xd
-
     jmp End
-
-    pop	r15
-    pop	r14
-    pop	r13
-    pop	r12
-    pop	r11
-    pop	r10
-    pop	r9
-    pop	r8
-    pop	rbp
-    pop	rdi
-    pop	rsi  
-    pop	rdx
-    pop	rcx
-    pop	rbx
-    pop	rax
-
+    popR
     iretq
 
 Timer:
-    push rax
-    push rbx  
-    push rcx
-    push rdx  	  
-    push rsi
-    push rdi
-    push rbp
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
-
+    pushR
     inc byte[0xb8020]
     mov byte[0xb8021],0xe
     
     mov al,0x20 ; command register of the PIC
     out 0x20,al
-   
-    pop	r15
-    pop	r14
-    pop	r13
-    pop	r12
-    pop	r11
-    pop	r10
-    pop	r9
-    pop	r8
-    pop	rbp
-    pop	rdi
-    pop	rsi  
-    pop	rdx
-    pop	rcx
-    pop	rbx
-    pop	rax
+    popR
+    iretq
 
+SIRQ:
+    pushR
+    mov al,11   ; 00001011 -> 11 means reading ISR register + bit 3 means command reading IRR or ISR
+    out 0x20,al ; mov to command register
+    in al,0x20  ; read data using 'in' inst
+
+    test al,(1<<7)
+    jz .end     ; if jump, spurious interrupts
+
+    mov al,0x20
+    out 0x20,al
+
+.end:           
+    popR
     iretq
 
 Gdt64:
