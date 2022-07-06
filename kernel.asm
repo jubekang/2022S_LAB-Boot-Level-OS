@@ -93,16 +93,16 @@ End:
     jmp End
 
 UserEntry:
-    mov ax,cs   ; check lower 2 bit of cs to check DPL
-    and al,11b
-    cmp al,3    ; check whether DPL is 3
-    jne UEnd    ; if not in ring 3, jump
+    ; mov ax,cs   ; check lower 2 bit of cs to check DPL
+    ; and al,11b
+    ; cmp al,3    ; check whether DPL is 3
+    ; jne UEnd    ; if not in ring 3, jump
 
-    mov byte[0xb8010],'U'   ; in Ring3
+    inc byte[0xb8010]       ; in Ring3
     mov byte[0xb8011],0xf
 
 UEnd:
-    jmp UEnd
+    jmp UserEntry
 
 Handler0:
 
@@ -163,9 +163,11 @@ Timer:
     push r14
     push r15
 
-    mov byte[0xb8020],'T'
+    inc byte[0xb8020]
     mov byte[0xb8021],0xe
-    jmp End
+    
+    mov al,0x20 ; command register of the PIC
+    out 0x20,al
    
     pop	r15
     pop	r14
