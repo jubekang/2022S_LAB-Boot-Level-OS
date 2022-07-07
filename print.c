@@ -5,6 +5,8 @@
 
 static struct ScreenBuffer screen_buffer = {(char*)0xb8000, 0, 0};  /* 0, 0 for low,column */
 
+/* we use printk function in the ASSERT MACRO, we should not use assert here */
+
 static int udecimal_to_string(char *buffer, int position, uint64_t digits)
 {
     char digits_map[10] = "0123456789";
