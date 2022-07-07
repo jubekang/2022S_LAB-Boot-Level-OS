@@ -93,12 +93,12 @@ InitPIC:        ; Programmable Interval Controller(PIT use IRQ0)
     retf                ; load code segment descriptor in cs register : use far return
 
 KernelEntry:    ; jump to main function in C
-    xor ax,ax   ; init segment selector(ss) to 0
-    mov ss,ax
+    ; xor ax,ax   ; init segment selector(ss) to 0
+    ; mov ss,ax   ; disable interrupt until get to ring3
 
     mov rsp,0x200000
     call KMain
-    sti         ; enable interrupt after the main function returns
+    ; sti         ; enable interrupt after the main function returns
 
 End:
     hlt
