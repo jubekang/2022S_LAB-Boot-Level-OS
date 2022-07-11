@@ -55,7 +55,7 @@ GetMemInfo:
     int 0x15
     jnc GetMemInfo      ; reach end of memory block
 
-GetMemdone:
+GetMemDone:
 
 TestA20:
     mov ax,0xffff
