@@ -4,16 +4,29 @@
 #include "stdint.h"
 
 struct E820 {
-    uint64_t address;   /* base address of memory region */
-    uint64_t length;    /* length of memory region */
-    uint32_t type;      /* type of memory */
-} __attribute__((packed));  /* structure start without padding */
+    uint64_t address;
+    uint64_t length;
+    uint32_t type;
+} __attribute__((packed));
 
 struct FreeMemRegion {
-    uint64_t address;   /* base address of free memory region */
-    uint64_t length;    /* length of free memory region */
+    uint64_t address;
+    uint64_t length;
 };
 
+struct Page {
+    struct Page* next;
+};
+
+#define PAGE_SIZE (2*1024*1024) /* 2GB */
+#define PA_UP(v) ((((uint64_t)v+PAGE_SIZE-1)>>21)<<21) /* allign the address to 2m boundary */
+#define PA_DOWN(v) (((uint64_t)v>>21)<<21)
+#define P2V(p) ((uint64_t)(p)+0xffff800000000000) /* convert between physical and virtual address */
+#define V2P(v) ((uint64_t)(v)-0xffff800000000000)
+
 void init_memory(void);
+void* kalloc(void);
+void kfree(uint64_t v);
+
 
 #endif

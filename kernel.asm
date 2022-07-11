@@ -6,7 +6,7 @@ Gdt64:
     dq 0
     dq 0x0020980000000000
     dq 0x0020f80000000000   ; DPL 00 -> 11
-    dq 0x0020f20000000000   ; DPL 00 -> 11 / present bit 1 -> data seegment descriptor
+    dq 0x0000f20000000000   ; DPL 00 -> 11 / present bit 1 -> data seegment descriptor
 TssDesc:
     dw TssLen-1 ; Tss limit
     dw 0        ; lower 24 bits of the base address
@@ -24,7 +24,7 @@ Gdt64Ptr: dw Gdt64Len-1
 
 Tss:
     dd 0            ; first 4 byte are reserved
-    dq 0xffff800000150000     ; RSP : new address to TSS loaded
+    dq 0xffff800000190000     ; RSP : new address to TSS loaded
     times 88 db 0   ; not used
     dd TssLen       ; size of Tss + IO permission bitmap is not used
 
@@ -43,15 +43,13 @@ start:
 SetTss:
     mov rax,Tss 
     mov rdi,TssDesc        
-    mov [TssDesc+2],ax  ; lower 16 bits of the address in the 3th byte in desc
+    mov [rdi+2],ax  ; lower 16 bits of the address in the 3th byte in desc
     shr rax,16
-    mov [TssDesc+4],al  ; 16-23 bits of the address in the 5th byte in desc
+    mov [rdi+4],al  ; 16-23 bits of the address in the 5th byte in desc
     shr rax,8
-    mov [TssDesc+7],al  ; next 8 bits of the address in the 8th byte in desc
+    mov [rdi+7],al  ; next 8 bits of the address in the 8th byte in desc
     shr rax,8
-    mov [TssDesc+8],eax ; last 32 bits of the address in the 9th byte in desc
-
-    ; Descriptor is set here
+    mov [rdi+8],eax ; last 32 bits of the address in the 9th byte in desc
 
     mov ax,0x20         ; selector we use is 0x20
     ltr ax              ; load task register inst'
