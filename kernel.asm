@@ -24,7 +24,7 @@ Gdt64Ptr: dw Gdt64Len-1
 
 Tss:
     dd 0            ; first 4 byte are reserved
-    dq 0x150000     ; RSP : new address to TSS loaded
+    dq 0xffff800000150000     ; RSP : new address to TSS loaded
     times 88 db 0   ; not used
     dd TssLen       ; size of Tss + IO permission bitmap is not used
 
@@ -37,10 +37,12 @@ global start
 
 
 start:
-    lgdt [Gdt64Ptr]     ; load Gdt pointer
+    mov rax,Gdt64Ptr
+    lgdt [rax]     ; load Gdt pointer
 
 SetTss:
-    mov rax,Tss         
+    mov rax,Tss 
+    mov rdi,TssDesc        
     mov [TssDesc+2],ax  ; lower 16 bits of the address in the 3th byte in desc
     shr rax,16
     mov [TssDesc+4],al  ; 16-23 bits of the address in the 5th byte in desc
@@ -87,18 +89,16 @@ InitPIC:        ; Programmable Interval Controller(PIT use IRQ0)
     mov al,11111111b
     out 0xa1,al
 
+    mov rax,KernelEntry
     push 8              ; code segment discriptor is second entry of gdt
-    push KernelEntry    ; return address
+    push rax    ; return address
     db 0x48             ; default operand size of far ret is 32 bit => override prefix 48 to make 64 bit
     retf                ; load code segment descriptor in cs register : use far return
 
 KernelEntry:    ; jump to main function in C
-    ; xor ax,ax   ; init segment selector(ss) to 0
-    ; mov ss,ax   ; disable interrupt until get to ring3
 
-    mov rsp,0x200000
+    mov rsp,0xffff800000200000
     call KMain
-    ; sti         ; enable interrupt after the main function returns
 
 End:
     hlt

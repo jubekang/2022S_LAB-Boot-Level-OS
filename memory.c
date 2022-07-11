@@ -21,7 +21,7 @@ void init_memory(void)
             free_region_count++;
         }
         
-        printk("%x  %uKB  %u\n", mem_map[i].address, mem_map[i].length/1024, (uint64_t)mem_map[i].type);
+        printk("Adress: %x  Length: %uKB  Type: %u\n", mem_map[i].address, mem_map[i].length/1024, (uint64_t)mem_map[i].type);
 	}
 
     printk("Total memory is %uMB\n", total_mem/1024/1024);

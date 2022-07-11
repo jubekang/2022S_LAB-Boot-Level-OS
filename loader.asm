@@ -105,15 +105,22 @@ PMEntry:
     mov ss,ax
     mov esp,0x7c00
 
-    ;----------------------- : find a free memory area and inititialize the paging structure
+    ;---------------------  : find a free memory area and inititialize the paging structure
     cld
-    mov edi,0x70000
+    mov edi,0x70000         ; value of cr3 is 0x70000
     xor eax,eax
     mov ecx,0x10000/4
     rep stosd
     
-    mov dword[0x70000],0x71007
-    mov dword[0x71000],10000111b
+    mov dword[0x70000],0x71003  ; U | W | P = 0 1 1 == 3
+                                ; reason why we setted up to 7 is after we jump to ring3, 
+                                ; we accessed memory and write to screen buffer -> U should be 1 at that time
+    mov dword[0x71000],10000111b; 7th bit to 1
+
+    mov eax,(0xffff800000000000>>39)
+    and eax,0x1ff
+    mov dword[0x70000+eax*8],0x72003
+    mov dword[0x72000],10000111b
     ;-----------------------
 
     lgdt [Gdt64Ptr]     ; set gdt pointer
@@ -152,7 +159,8 @@ LMEntry:                ; Start of LONG_MODE
     mov rcx,51200/8     ; rcx as a counter => copy 51200 q-word byte(read 100 sectors which is 512B)
     rep movsq           ; kernel is in 0x10000 and copied to 0x2000000
 
-    jmp 0x200000        ; jump to kernel
+    mov rax,0xffff800000200000
+    jmp rax        ; jump to kernel
 
 LEnd:
     hlt
