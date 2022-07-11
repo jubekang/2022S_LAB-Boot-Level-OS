@@ -37,22 +37,25 @@ GetMemInfoStart:
     mov eax,0xe820      ; service name
     mov edx,0x534d4150  ; ascii code for smap
     mov ecx,20          ; length of memory block
+    mov dword[0x9000],0 ; initialize 4byte to 0
+    mov edi,0x9008      ; information stored in address 9008
     xor ebx,ebx
     int 0x15
     jc NotSupport       ; service e820 is not available
 
 GetMemInfo:
     add edi,20
+    inc dword[0x9000]   ; count the number of getting memory block
+    test ebx,ebx        ; if ebx is 0, it means that reach the end and jump to Done
+    jz GetMemDone
+
     mov eax,0xe820      ; service name
     mov edx,0x534d4150  ; ascii code for smap
     mov ecx,20          ; length of memory block
     int 0x15
-    jc GEtMemdone       ; reach end of memory block
+    jnc GetMemInfo      ; reach end of memory block
 
-    test ebx,ebx
-    jnz GetMemInfo
-
-GEtMemdone:
+GetMemdone:
 
 TestA20:
     mov ax,0xffff
@@ -104,13 +107,13 @@ PMEntry:
 
     ;----------------------- : find a free memory area and inititialize the paging structure
     cld
-    mov edi,0x80000
+    mov edi,0x70000
     xor eax,eax
     mov ecx,0x10000/4
     rep stosd
     
-    mov dword[0x80000],0x81007
-    mov dword[0x81000],10000111b
+    mov dword[0x70000],0x71007
+    mov dword[0x71000],10000111b
     ;-----------------------
 
     lgdt [Gdt64Ptr]     ; set gdt pointer
@@ -119,7 +122,7 @@ PMEntry:
     or eax,(1<<5)       ; set physical address extension bit(5)
     mov cr4,eax
 
-    mov eax,0x80000     ; set cr3 to 0x80000 -> using physical address
+    mov eax,0x70000     ; set cr3 to 0x80000 -> using physical address
     mov cr3,eax
 
     mov ecx,0xc0000080  
