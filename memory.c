@@ -10,7 +10,6 @@ static void free_region(uint64_t v, uint64_t e);
 static struct FreeMemRegion free_mem_region[50];
 static struct Page free_memory;
 static uint64_t memory_end;
-uint64_t page_map;
 extern char end;    /* declared in linker file : end of kernel */
 
 void init_memory(void)
@@ -168,23 +167,45 @@ void switch_vm(uint64_t map)
     load_cr3(V2P(map));   
 }
 
-static void setup_kvm(void)
+uint64_t setup_kvm(void)
 {   /* remap our kernel using 2m pages */
 
-    page_map = (uint64_t)kalloc(); /* allocate new free page */
-    ASSERT(page_map != 0);
-
-    memset((void*)page_map, 0, PAGE_SIZE); /* zero the page */       
-    bool status = map_pages(page_map, KERNEL_BASE, memory_end, V2P(KERNEL_BASE), PTE_P|PTE_W);
-    /* PML4 Table, start address, end address(kernel), physical address of kernel, Attribute(readable, writable, not accessible by user) */
-    ASSERT(status == true);
+    uint64_t page_map = (uint64_t)kalloc(); /* allocate new free page */
+    if(page_map != 0){
+        memset((void*)page_map, 0, PAGE_SIZE); /* zero the page */       
+        if(!map_pages(page_map, KERNEL_BASE, memory_end, V2P(KERNEL_BASE), PTE_P|PTE_W)){
+            /* PML4 Table, start address, end address(kernel), physical address of kernel, Attribute(readable, writable, not accessible by user) */
+            free_vm(page_map);
+            page_map = 0;
+        }
+        return page_map;
+    }
 }
 
 void init_kvm(void)
 {
-    setup_kvm();
+    uint64_t page_map = setup_kvm();
+    ASSERT(page_map != 0);
     switch_vm(page_map);
     printk("Memory manager is working now");
+}
+
+bool setup_uvm(uint64_t map, uint64_t start, int size){
+    bool status = false;
+    void *page = kalloc();
+
+    if(page != NULL){
+        memset(page, 0, PAGE_SIZE);
+        status = map_pages(map, 0x400000, 0x400000+PAGE_SIZE, V2P(page), PTE_P|PTE_W|PTE_U);
+        if(status == true){
+            memcpy(page, (void *)start, size);
+        }
+        else{
+            kree((uint64_t)page);
+            free_vm(map);
+        }
+    }
+    return status;
 }
 
 void free_pages(uint64_t map, uint64_t vstart, uint64_t vend)
@@ -197,12 +218,12 @@ void free_pages(uint64_t map, uint64_t vstart, uint64_t vend)
 
     do {
         PD pd = find_pdpt_entry(map, vstart, 0, 0);
-        /* free the existing page */
-        if (pd != NULL) {
+        if (pd != NULL) {  /* free when the existing page */
             index = (vstart >> 21) & 0x1FF;
-            ASSERT(pd[index] & PTE_P); /* should be exist */          
-            kfree(P2V(PTE_ADDR(pd[index])));
-            pd[index] = 0;
+            if(pd[index] & PTE_P){
+                kfree(P2V(PTE_ADDR(pd[index])));
+                pd[index] = 0;
+            }
         }
 
         vstart += PAGE_SIZE;
@@ -247,7 +268,7 @@ static void free_pml4t(uint64_t map)
 
 void free_vm(uint64_t map)
 {   
-    //free_pages(map,vstart,vend); /* dosen't have process and user space, yet. */
+    free_pages(map, 0x400000, 0x400000+PAGE_SIZE);
     free_pdt(map);
     free_pdpt(map);
     free_pml4t(map);
