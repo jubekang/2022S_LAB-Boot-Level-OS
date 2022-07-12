@@ -169,7 +169,7 @@ void switch_vm(uint64_t map)
 }
 
 static void setup_kvm(void)
-{   /* reemap our kernel using 2m pages */
+{   /* remap our kernel using 2m pages */
 
     page_map = (uint64_t)kalloc(); /* allocate new free page */
     ASSERT(page_map != 0);
@@ -184,5 +184,72 @@ void init_kvm(void)
 {
     setup_kvm();
     switch_vm(page_map);
-    printk("mMMMMMMMemory manager is working now");
+    printk("Memory manager is working now");
+}
+
+void free_pages(uint64_t map, uint64_t vstart, uint64_t vend)
+{   /* reverse process of mapping pages */
+
+    unsigned int index; 
+
+    ASSERT(vstart % PAGE_SIZE == 0); /* check whether start and end aligned */
+    ASSERT(vend % PAGE_SIZE == 0);
+
+    do {
+        PD pd = find_pdpt_entry(map, vstart, 0, 0);
+        /* free the existing page */
+        if (pd != NULL) {
+            index = (vstart >> 21) & 0x1FF;
+            ASSERT(pd[index] & PTE_P); /* should be exist */          
+            kfree(P2V(PTE_ADDR(pd[index])));
+            pd[index] = 0;
+        }
+
+        vstart += PAGE_SIZE;
+    } while (vstart+PAGE_SIZE <= vend);
+}
+
+static void free_pdt(uint64_t map)
+{   /* look through the pml4 table */
+
+    PDPTR *map_entry = (PDPTR*)map;
+
+    for (int i = 0; i < 512; i++) {
+        if ((uint64_t)map_entry[i] & PTE_P) {            
+            PD *pdptr = (PD*)P2V(PDE_ADDR(map_entry[i]));
+            
+            for (int j = 0; j < 512; j++) {
+                if ((uint64_t)pdptr[j] & PTE_P) {
+                    kfree(P2V(PDE_ADDR(pdptr[j])));
+                    pdptr[j] = 0;
+                }
+            }
+        }
+    }
+}
+
+static void free_pdpt(uint64_t map)
+{
+    PDPTR *map_entry = (PDPTR*)map;
+
+    for (int i = 0; i < 512; i++) {
+        if ((uint64_t)map_entry[i] & PTE_P) {          
+            kfree(P2V(PDE_ADDR(map_entry[i])));
+            map_entry[i] = 0;
+        }
+    }
+}
+
+static void free_pml4t(uint64_t map)
+{
+    kfree(map);
+}
+
+void free_vm(uint64_t map)
+{   
+    //free_pages(map,vstart,vend); /* dosen't have process and user space, yet. */
+    free_pdt(map);
+    free_pdpt(map);
+    free_pml4t(map);
+    printk("Freed VM");
 }

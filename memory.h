@@ -44,5 +44,7 @@ void* kalloc(void);
 void kfree(uint64_t v);
 bool map_pages(uint64_t map, uint64_t v, uint64_t e, uint64_t pa, uint32_t attribute);
 void load_cr3(uint64_t map);
+void free_vm(uint64_t map);
+void free_page(uint64_t map, uint64_t v, uint64_t e);
 
 #endif
