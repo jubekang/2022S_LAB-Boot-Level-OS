@@ -1,13 +1,16 @@
 #include "memory.h"
 #include "print.h"
 #include "debug.h"
+#include "lib.h"
 #include "stddef.h"
+#include "stdbool.h"
 
 static void free_region(uint64_t v, uint64_t e);
 
 static struct FreeMemRegion free_mem_region[50];
 static struct Page free_memory;
 static uint64_t memory_end;
+uint64_t page_map;
 extern char end;    /* declared in linker file : end of kernel */
 
 void init_memory(void)
@@ -29,8 +32,6 @@ void init_memory(void)
         printk("Adress: %x  Length: %uKB  Type: %u\n", mem_map[i].address, mem_map[i].length/1024, (uint64_t)mem_map[i].type);
 	}
 
-    printk("Total memory is %uMB\n", total_mem/1024/1024);
-
     /* divide the free memory into a 2MB pages */
     for (int i = 0; i < free_region_count; i++) {                  
         uint64_t vstart = P2V(free_mem_region[i].address);  /* beginning of the memory region: virual adddress */
@@ -45,7 +46,7 @@ void init_memory(void)
     }
 
     memory_end = (uint64_t)free_memory.next+PAGE_SIZE;
-    printk("end of memory: %x\n",memory_end);
+    printk("end of memory: %x\n",memory_end);   /* This memory_end should be align in 2MB */
 }
 
 static void free_region(uint64_t v, uint64_t e)
@@ -67,7 +68,6 @@ void kfree(uint64_t v)
     page_address->next = free_memory.next;
     free_memory.next = page_address;
 
-    //printk("free!\n");
 }
 
 void* kalloc(void)
@@ -83,4 +83,106 @@ void* kalloc(void)
     }
     
     return page_address;
+}
+
+static PDPTR find_pml4t_entry(uint64_t map, uint64_t v, int alloc, uint32_t attribute)
+{   /* find specific pml4 table entry according to the VA */
+
+    PDPTR *map_entry = (PDPTR*)map;
+    PDPTR pdptr = NULL;
+    unsigned int index = (v >> 39) & 0x1FF;
+
+    if ((uint64_t)map_entry[index] & PTE_P) { /* if it already has page */
+        pdptr = (PDPTR)P2V(PDE_ADDR(map_entry[index]));       
+    } 
+    else if (alloc == 1) { /* when P == 0 */
+        pdptr = (PDPTR)kalloc();          
+        if (pdptr != NULL) {     
+            memset(pdptr, 0, PAGE_SIZE);     
+            map_entry[index] = (PDPTR)(V2P(pdptr) | attribute);           
+        }
+    } 
+
+    return pdptr;    /* page directory pointer table */
+}
+
+static PD find_pdpt_entry(uint64_t map, uint64_t v, int alloc, uint32_t attribute)
+{   /* find specific pdp table entry */
+    /* if parameter "alloc" is 1, we create a page if it does exist */
+
+    PDPTR pdptr = NULL;
+    PD pd = NULL;
+    unsigned int index = (v >> 30) & 0x1FF; /* index is at 30th bit */
+
+    pdptr = find_pml4t_entry(map, v, alloc, attribute);
+    if (pdptr == NULL)
+        return NULL;
+       
+    if ((uint64_t)pdptr[index] & PTE_P) { /* if it already has page */  
+        pd = (PD)P2V(PDE_ADDR(pdptr[index]));      
+    }
+    else if (alloc == 1) { /* when P == 0 */
+        pd = (PD)kalloc();
+        if (pd != NULL) {    
+            memset(pd, 0, PAGE_SIZE);       
+            pdptr[index] = (PD)(V2P(pd) | attribute);
+        }
+    } 
+
+    return pd;
+}
+
+bool map_pages(uint64_t map, uint64_t v, uint64_t e, uint64_t pa, uint32_t attribute)
+{ /* mapping to PA */
+    uint64_t vstart = PA_DOWN(v);   /* saving aligned virtual address */
+    uint64_t vend = PA_UP(e);       /* '' */
+    PD pd = NULL;
+    unsigned int index;
+
+    ASSERT(v < e); /* start < end */
+    ASSERT(pa % PAGE_SIZE == 0); /* aligned */
+    ASSERT(pa+vend-vstart <= 1024*1024*1024); /* if it excess 1G */
+
+    do {
+        /* first : find "page directory pointer table" */
+        pd = find_pdpt_entry(map, vstart, 1, attribute);    
+        if (pd == NULL) {
+            return false; /* Not found */
+        }
+
+        index = (vstart >> 21) & 0x1FF; /* index bit starts from 21th bit : 9 bit */
+        ASSERT(((uint64_t)pd[index] & PTE_P) == 0); /* if PTE_P is 0 => it cannot be happened */
+
+        pd[index] = (PDE)(pa | attribute | PTE_ENTRY);
+
+        vstart += PAGE_SIZE;
+        pa += PAGE_SIZE;
+    } while (vstart + PAGE_SIZE <= vend);
+  
+    return true;
+}
+
+void switch_vm(uint64_t map)
+{   /* load cr3 register with the new translation table */
+
+    load_cr3(V2P(map));   
+}
+
+static void setup_kvm(void)
+{   /* reemap our kernel using 2m pages */
+
+    page_map = (uint64_t)kalloc(); /* allocate new free page */
+    ASSERT(page_map != 0);
+
+    memset((void*)page_map, 0, PAGE_SIZE); /* zero the page */       
+    bool status = map_pages(page_map, KERNEL_BASE, memory_end, V2P(KERNEL_BASE), PTE_P|PTE_W);
+    /* PML4 Table, start address, end address(kernel), physical address of kernel, Attribute(readable, writable, not accessible by user) */
+    ASSERT(status == true);
+}
+
+void init_kvm(void)
+{
+    setup_kvm();
+    switch_vm(page_map);
+    printk("mMMMMMMMemory manager is working now");
 }

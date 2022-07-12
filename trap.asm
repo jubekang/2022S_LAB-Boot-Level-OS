@@ -24,6 +24,7 @@ global vector39
 global eoi
 global read_isr
 global load_idt
+global load_cr3
 
 Trap:
     push rax
@@ -67,8 +68,6 @@ TrapReturn:
 
     add rsp,16      ; pushed two value
     iretq
-
-
 
 vector0:
     push 0      ; as error code
@@ -176,6 +175,11 @@ read_isr:
 
 load_idt:       ; defined here 'cause C cannot use load idt instruction
     lidt [rdi]
+    ret
+
+load_cr3:
+    mov rax,rdi
+    mov cr3,rax
     ret
 
 
