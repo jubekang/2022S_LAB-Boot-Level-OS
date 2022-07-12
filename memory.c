@@ -28,6 +28,9 @@ void init_memory(void)
         }
         printk("Adress: %x  Length: %uKB  Type: %u\n", mem_map[i].address, mem_map[i].length/1024, (uint64_t)mem_map[i].type);
 	}
+
+    printk("Total memory is %uMB\n", total_mem/1024/1024);
+
     /* divide the free memory into a 2MB pages */
     for (int i = 0; i < free_region_count; i++) {                  
         uint64_t vstart = P2V(free_mem_region[i].address);  /* beginning of the memory region: virual adddress */
@@ -42,7 +45,7 @@ void init_memory(void)
     }
 
     memory_end = (uint64_t)free_memory.next+PAGE_SIZE;
-    printk("%x\n",memory_end);
+    printk("end of memory: %x\n",memory_end);
 }
 
 static void free_region(uint64_t v, uint64_t e)
