@@ -2,6 +2,8 @@
 
 section .data
 
+global Tss
+
 Gdt64:
     dq 0
     dq 0x0020980000000000

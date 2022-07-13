@@ -201,7 +201,7 @@ bool setup_uvm(uint64_t map, uint64_t start, int size){
             memcpy(page, (void *)start, size);
         }
         else{
-            kree((uint64_t)page);
+            kfree((uint64_t)page);
             free_vm(map);
         }
     }
@@ -268,7 +268,7 @@ static void free_pml4t(uint64_t map)
 
 void free_vm(uint64_t map)
 {   
-    free_pages(map, 0x400000, 0x400000+PAGE_SIZE);
+    free_pages(map, 0x400000, 0x400000+PAGE_SIZE); /* user space */
     free_pdt(map);
     free_pdpt(map);
     free_pml4t(map);

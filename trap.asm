@@ -21,10 +21,13 @@ global vector18
 global vector19
 global vector32
 global vector39
+global sysint
 global eoi
 global read_isr
 global load_idt
 global load_cr3
+global pstart
+global read_cr2
 
 Trap:
     push rax
@@ -42,9 +45,6 @@ Trap:
     push r13
     push r14
     push r15
-
-    inc byte[0xb8010]
-    mov byte[0xb8011],0xe
 
     mov rdi,rsp     ; first argument : stack pointer
     call handler    ; call function
@@ -162,6 +162,11 @@ vector39:       ; spurious interrupt
     push 39
     jmp Trap
 
+sysint:
+    push 0      ; no error code
+    push 0x80
+    jmp Trap
+
 eoi:            ; End of interrupt
     mov al,0x20
     out 0x20,al
@@ -182,4 +187,10 @@ load_cr3:
     mov cr3,rax
     ret
 
+pstart:
+    mov rsp,rdi
+    jmp TrapReturn
 
+read_cr2:
+    mov rax, cr2
+    ret
