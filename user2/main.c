@@ -3,7 +3,11 @@
 
 int main(void)
 {   
+    char *p = (char *)0xffff800000200200;
+    /* touch kernel region in user program -> exception */
+    *p = 1;
     printf("process2\n");
     sleepu(100);
+
     return 0;
 }
