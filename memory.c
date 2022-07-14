@@ -14,7 +14,7 @@ extern char end;    /* declared in linker file : end of kernel */
 
 void init_memory(void)
 {
-    int32_t count = *(int32_t*)0x9000;
+    int32_t count = *(int32_t*)0x9000; /* why 0x9000? */
     uint64_t total_mem = 0;
     struct E820 *mem_map = (struct E820*)0x9008;	
     int free_region_count = 0;
@@ -64,7 +64,7 @@ void kfree(uint64_t v)
     ASSERT(v+PAGE_SIZE <= 0xffff800040000000); /* check 1G memory limit */ 
 
     struct Page *page_address = (struct Page*)v;
-    page_address->next = free_memory.next;
+    page_address->next = free_memory.next; /* when init? */
     free_memory.next = page_address;
 
 }
@@ -161,15 +161,15 @@ bool map_pages(uint64_t map, uint64_t v, uint64_t e, uint64_t pa, uint32_t attri
     return true;
 }
 
+/* load cr3 register with the new translation table */
 void switch_vm(uint64_t map)
-{   /* load cr3 register with the new translation table */
-
+{
     load_cr3(V2P(map));   
 }
 
+/* remap our kernel using 2m pages */
 uint64_t setup_kvm(void)
-{   /* remap our kernel using 2m pages */
-
+{
     uint64_t page_map = (uint64_t)kalloc(); /* allocate new free page */
     if(page_map != 0){
         memset((void*)page_map, 0, PAGE_SIZE); /* zero the page */       
@@ -187,7 +187,7 @@ void init_kvm(void)
     uint64_t page_map = setup_kvm();
     ASSERT(page_map != 0);
     switch_vm(page_map);
-    printk("Memory manager is working now");
+    printk("Memory manager is working now\n");
 }
 
 bool setup_uvm(uint64_t map, uint64_t start, int size){

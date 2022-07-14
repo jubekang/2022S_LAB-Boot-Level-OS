@@ -10,6 +10,7 @@ static struct Process process_table[NUM_PROC];
 static int pid_num = 1;
 static struct ProcessControl pc; /* ready list + current process */
 
+/* */
 static void set_tss(struct Process *proc)
 {
     Tss.rsp0 = proc->stack + STACK_SIZE;    
@@ -63,6 +64,7 @@ static struct ProcessControl* get_pc(void)
     return &pc;
 }
 
+
 void init_process(void)
 {   
     
@@ -98,7 +100,7 @@ void launch(void)
     pstart(process_table[0].tf); /* jump to trap return */
 }
 
-
+/*  */
 static void switch_process(struct Process *prev, struct Process *current)
 {
     set_tss(current);
@@ -106,6 +108,7 @@ static void switch_process(struct Process *prev, struct Process *current)
     swap(&prev->context, current->context);
 }
 
+/* switch current process to next process */
 static void schedule(void)
 {
     struct Process *prev_proc;
@@ -125,10 +128,9 @@ static void schedule(void)
     switch_process(prev_proc, current_proc);   
 }
 
+/* called when timer interrupt fired */
 void yield(void)
-{   /* called when timer interrupt fired */
-
-    struct ProcessControl *process_control;
+{   struct ProcessControl *process_control;
     struct Process *process;
     struct HeadList *list;
     
@@ -143,4 +145,38 @@ void yield(void)
     process->state = PROC_READY;
     append_list_tail(list, (struct List*)process);
     schedule();
+}
+
+/* make sleep current process */
+/* not in ready list -> cannot wake by scheduler */
+void sleep(int wait)
+{   struct ProcessControl *process_control;
+    struct Process *process;
+    
+    process_control = get_pc();
+    process = process_control->current_process;
+    process->state = PROC_SLEEP;
+    process->wait = wait;
+
+    append_list_tail(&process_control->wait_list, (struct List*)process);
+    schedule();
+}
+
+/* wake up all the same wait-number-processes */
+void wake_up(int wait)
+{   struct ProcessControl *process_control;
+    struct Process *process;
+    struct HeadList *ready_list;
+    struct HeadList *wait_list;
+
+    process_control = get_pc();
+    ready_list = &process_control->ready_list;
+    wait_list = &process_control->wait_list;
+    process = (struct Process*)remove_list(wait_list, wait);
+
+    while (process != NULL) {       
+        process->state = PROC_READY;
+        append_list_tail(ready_list, (struct List*)process);
+        process = (struct Process*)remove_list(wait_list, wait);
+    }
 }

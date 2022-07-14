@@ -8,6 +8,7 @@ struct Process { /* process control block */
 	struct List *next;
     int pid;
 	int state;
+	int wait;			/* tell the reason of wating */
 	uint64_t context;	/* saved rsp value */
 	uint64_t page_map;	/* pml4 table */
 	uint64_t stack; 	/* stack for kernel */
@@ -35,6 +36,7 @@ struct TSS { /* save register of process */
 struct ProcessControl {
 	struct Process *current_process;
 	struct HeadList ready_list;
+	struct HeadList wait_list;
 };
 
 
@@ -44,11 +46,15 @@ struct ProcessControl {
 #define PROC_INIT 1
 #define PROC_RUNNING 2
 #define PROC_READY 3
+#define PROC_SLEEP 4
 
 void init_process(void);
 void launch(void);
 void pstart(struct TrapFrame *tf);
 void yield(void);
 void swap(uint64_t *prev, uint64_t next);
+void sleep(int wait);
+void wake_up(int wait);
+
 
 #endif

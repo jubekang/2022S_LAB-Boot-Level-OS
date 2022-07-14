@@ -3,11 +3,9 @@
 
 int main(void)
 {   
-    int64_t counter = 0;
     while(1){
-        if(counter % 1000000 == 0)
-            printf("process2 %d\n", counter);
-        counter ++;
+        printf("process2\n");
+        sleepu(100);
     }
     return 0;
 }

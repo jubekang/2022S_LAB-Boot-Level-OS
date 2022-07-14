@@ -43,7 +43,7 @@ struct TrapFrame {
     int64_t ss;
 };
 
-
+/* declared in trap.asm */
 void vector0(void);
 void vector1(void);
 void vector2(void);
@@ -71,5 +71,7 @@ void load_idt(struct IdtPtr *ptr);
 unsigned char read_isr(void);
 uint64_t read_cr2(void);
 void TrapReturn(void);
+
+uint64_t get_ticks(void);
 
 #endif
