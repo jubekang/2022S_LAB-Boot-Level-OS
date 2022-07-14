@@ -28,6 +28,8 @@ global load_idt
 global load_cr3
 global pstart
 global read_cr2
+global swap
+global TrapReturn
 
 Trap:
     push rax
@@ -193,4 +195,24 @@ pstart:
 
 read_cr2:
     mov rax, cr2
+    ret
+
+swap:
+    push rbx
+    push rbp
+    push r12
+    push r13
+    push r14
+    push r15
+    
+    mov [rdi],rsp   ; change current stack pointer
+    mov rsp,rsi
+    
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbp
+    pop rbx
+    
     ret
