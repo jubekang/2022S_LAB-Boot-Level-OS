@@ -64,6 +64,22 @@ LoadUser2:
     jc ReadError
 
 
+LoadUser3:
+    mov si, ReadPacket
+    mov word[si],0x10       ; size - 'word' - word(2)
+    mov word[si+2],10       ; number of sectors
+    mov word[si+4],0        ; offset
+    mov word[si+6],0x4000   ; segment -> 0x1000*16 + 0 = 0x10000 
+                            ; => to express large value like 0x10000
+    mov dword[si+8],126     ; address lo - 'dword' - Double word(4)
+    mov dword[si+0xc],0     ; address hi
+
+    mov dl,[DriveId]
+    mov ah,0x42
+    int 0x13
+    jc ReadError
+
+
 GetMemInfoStart:
     mov eax,0xe820      ; service name
     mov edx,0x534d4150  ; ascii code for smap

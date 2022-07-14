@@ -1,6 +1,8 @@
 section .text
 global writeu
 global sleepu
+global exitu
+global waitu
 
 writeu:
     sub rsp,16
@@ -17,14 +19,32 @@ writeu:
     ret
 
 sleepu:
-    sub rsp,8
-    mov eax,1
+    sub rsp,8       ; 
+    mov eax,1       ; index number is 1
 
     mov [rsp],rdi
-    mov rdi,1
+    mov rdi,1       ; 1 argument
     mov rsi,rsp
 
     int 0x80
 
     add rsp,8
+    ret
+
+exitu:
+    ; no argument passing
+
+    mov eax,2
+    mov rdi,0       ; 0 argument
+
+    int 0x80
+
+    ret ; normally, not ret from exit
+
+waitu:
+    mov eax,3
+    mov rdi,0       ; 0 argument
+
+    int 0x80
+
     ret
