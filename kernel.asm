@@ -84,7 +84,7 @@ InitPIC:        ; Programmable Interval Controller(PIT use IRQ0)
     out 0x21,al
     out 0xa1,al
 
-    mov al,11111110b    ; only IRQ0 is used(fire interrupt)
+    mov al,11111100b    ; only IRQ0 is used(fire interrupt) + keyboard interrupt
     out 0x21,al
     mov al,11111111b
     out 0xa1,al

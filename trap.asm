@@ -20,6 +20,7 @@ global vector17
 global vector18
 global vector19
 global vector32
+global vector33
 global vector39
 global sysint
 global eoi
@@ -30,6 +31,7 @@ global pstart
 global read_cr2
 global swap
 global TrapReturn
+global in_byte
 
 Trap:
     push rax
@@ -159,6 +161,11 @@ vector32:       ; Timer interrupt
     push 32
     jmp Trap
 
+vector33:       ; keyboard interrupt
+    push 0
+    push 33
+    jmp Trap
+
 vector39:       ; spurious interrupt
     push 0
     push 39
@@ -215,4 +222,9 @@ swap:
     pop rbp
     pop rbx
     
+    ret
+
+in_byte:
+    mov rdx,rdi     ; save port number in rdx
+    in al,dx        ; read the data to register al using "in" command
     ret

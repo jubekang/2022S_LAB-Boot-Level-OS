@@ -2,6 +2,7 @@
 #include "print.h"
 #include "syscall.h"
 #include "process.h"
+#include "keyboard.h"
 
 static struct IdtPtr idt_pointer;
 static struct IdtEntry vectors[256];
@@ -37,6 +38,7 @@ void init_idt(void)
     init_idt_entry(&vectors[18],(uint64_t)vector18,0x8e);
     init_idt_entry(&vectors[19],(uint64_t)vector19,0x8e);
     init_idt_entry(&vectors[32],(uint64_t)vector32,0x8e);
+    init_idt_entry(&vectors[33],(uint64_t)vector33,0x8e);
     init_idt_entry(&vectors[39],(uint64_t)vector39,0x8e);
     init_idt_entry(&vectors[0x80],(uint64_t)sysint,0xee); /* Different is DPL is set ot 3 */
 
@@ -65,7 +67,12 @@ void handler(struct TrapFrame *tf)
             timer_handler();
             eoi();  /* end of interrupt */
             break;
-            
+        
+        case 33:    /* keyboard interrupt */
+            keyboard_handler();
+            eoi();  /* if no eoi() we will not receive keyboard interrupt after we reture */
+            break;
+
         case 39:    /* spurious interrupt */
             isr_value = read_isr(); /* check whether it's real interrupt */
             if ((isr_value&(1<<7)) != 0) {
