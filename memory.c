@@ -10,12 +10,12 @@ static void free_region(uint64_t v, uint64_t e);
 static struct FreeMemRegion free_mem_region[50];
 static struct Page free_memory;
 static uint64_t memory_end;
+static uint64_t total_mem = 0;
 extern char end;    /* declared in linker file : end of kernel */
 
 void init_memory(void)
 {
     int32_t count = *(int32_t*)0x9000; /* why 0x9000? */
-    uint64_t total_mem = 0;
     struct E820 *mem_map = (struct E820*)0x9008;	
     int free_region_count = 0;
 
@@ -46,6 +46,11 @@ void init_memory(void)
 
     memory_end = (uint64_t)free_memory.next+PAGE_SIZE;
     printk("end of memory: %x\n",memory_end);   /* This memory_end should be align in 2MB */
+}
+
+uint64_t get_total_memory(void)
+{
+    return total_mem/1024/1024;
 }
 
 static void free_region(uint64_t v, uint64_t e)
@@ -187,7 +192,7 @@ void init_kvm(void)
     uint64_t page_map = setup_kvm();
     ASSERT(page_map != 0);
     switch_vm(page_map);
-    printk("Memory manager is working now\n");
+    //printk("Memory manager is working now\n");
 }
 
 bool setup_uvm(uint64_t map, uint64_t start, int size){

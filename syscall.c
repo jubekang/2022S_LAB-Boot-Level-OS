@@ -5,12 +5,13 @@
 #include "process.h"
 #include "trap.h"
 #include "keyboard.h"
+#include "memory.h"
 
 static SYSTEMCALL system_calls[10];
 
 static int sys_write(int64_t *argptr)
 {    
-    write_screen((char*)argptr[0], (int)argptr[1], 0xe);  
+    write_screen((char*)argptr[0], (int)argptr[1], 0xf);  
     return (int)argptr[1];
 }
 
@@ -48,6 +49,11 @@ static int sys_keyboard_read(int64_t *argptr)
     return read_key_buffer();
 }
 
+static int sys_get_total_memory(int64_t *argptr)
+{
+    return get_total_memory();
+}
+
 void init_system_call(void)
 {
     system_calls[0] = sys_write;
@@ -55,6 +61,7 @@ void init_system_call(void)
     system_calls[2] = sys_exit;
     system_calls[3] = sys_wait;
     system_calls[4] = sys_keyboard_read;
+    system_calls[5] = sys_get_total_memory;
 }
 
 void system_call(struct TrapFrame *tf)
@@ -63,7 +70,7 @@ void system_call(struct TrapFrame *tf)
     int64_t param_count = tf->rdi;
     int64_t *argptr = (int64_t*)tf->rsi;
 
-    if (param_count < 0 || i < 0 || i > 4) { 
+    if (param_count < 0 || i < 0 || i > 5) { 
         tf->rax = -1;
         return;
     }
