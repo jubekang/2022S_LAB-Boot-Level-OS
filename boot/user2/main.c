@@ -5,7 +5,7 @@
 static char *global_buffer;
 
 static void set_buffer(char *buffer)
-{
+{   
     global_buffer = buffer;
 }
 
@@ -62,9 +62,15 @@ static int parse_cmd(char *buffer, int buffer_size)
         cmd = 0;
     }
 
-    if (buffer_size >= 4  && (!memcmp("echo", buffer, 4))) {
+    if (buffer_size >= 4 && (!memcmp("echo", buffer, 4))) {
         cmd = 1;
-        set_buffer(buffer);
+        if(buffer_size >= 75){
+            printf("length limit!\n");
+            cmd = -1;
+        }
+        else{
+            set_buffer(buffer);
+        }
     }
 
     return cmd;
