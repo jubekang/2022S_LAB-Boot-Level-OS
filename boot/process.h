@@ -3,12 +3,14 @@
 
 #include "trap.h"
 #include "lib.h"
+#include "file.h"
 
 struct Process { /* process control block */
 	struct List *next;
     int pid;
 	int state;
 	int wait;			/* tell the reason of wating */
+	struct FileDesc *file[100];
 	uint64_t context;	/* saved rsp value */
 	uint64_t page_map;	/* pml4 table */
 	uint64_t stack; 	/* stack for kernel */
@@ -57,5 +59,6 @@ void sleep(int wait);
 void wake_up(int wait);
 void exit(void);
 void wait(void);
+struct ProcessControl* get_pc(void);
 
 #endif

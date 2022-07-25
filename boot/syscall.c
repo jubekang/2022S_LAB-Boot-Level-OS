@@ -6,12 +6,13 @@
 #include "trap.h"
 #include "keyboard.h"
 #include "memory.h"
+#include "file.h"
 
 static SYSTEMCALL system_calls[10];
 
 static int sys_write(int64_t *argptr)
 {    
-    write_screen((char*)argptr[0], (int)argptr[1], 0xb);  
+    write_screen((char*)argptr[0], (int)argptr[1], 0xe);  
     return (int)argptr[1];
 }
 
@@ -54,6 +55,32 @@ static int sys_get_total_memory(int64_t *argptr)
     return get_total_memory();
 }
 
+static int sys_open_file(int64_t *argptr)
+{
+    struct ProcessControl *pc = get_pc();
+    return open_file(pc->current_process, (char*)argptr[0]);
+}
+
+static int sys_read_file(int64_t *argptr)
+{
+    struct ProcessControl *pc = get_pc();
+    return read_file(pc->current_process, argptr[0], (void*)argptr[1], argptr[2]);
+}
+
+static int sys_close_file(int64_t *argptr)
+{
+    struct ProcessControl *pc = get_pc();
+    close_file(pc->current_process, argptr[0]);
+
+    return 0;
+}
+
+static int sys_get_file_size(int64_t *argptr)
+{
+    struct ProcessControl *pc = get_pc();  
+    return get_file_size(pc->current_process, argptr[0]);
+}
+
 void init_system_call(void)
 {
     system_calls[0] = sys_write;
@@ -62,6 +89,10 @@ void init_system_call(void)
     system_calls[3] = sys_wait;
     system_calls[4] = sys_keyboard_read;
     system_calls[5] = sys_get_total_memory;
+    system_calls[6] = sys_open_file;
+    system_calls[7] = sys_read_file;
+    system_calls[8] = sys_get_file_size;
+    system_calls[9] = sys_close_file;
 }
 
 void system_call(struct TrapFrame *tf)
@@ -70,7 +101,7 @@ void system_call(struct TrapFrame *tf)
     int64_t param_count = tf->rdi;
     int64_t *argptr = (int64_t*)tf->rsi;
 
-    if (param_count < 0 || i < 0 || i > 5) { 
+    if (param_count < 0 || i < 0 || i > 9) { 
         tf->rax = -1;
         return;
     }
