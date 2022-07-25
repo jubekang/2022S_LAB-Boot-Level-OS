@@ -16,83 +16,40 @@ start:  ; use same print function for simple program
     test edx,(1<<26)    ; 1g page suppport bit
     jz NotSupport
 
-LoadKernel:
-    ; --------------------- : Define structure
-    mov si, ReadPacket
-    mov word[si],0x10       ; size - 'word' - word(2)
-    mov word[si+2],100      ; number of sectors
-    mov word[si+4],0        ; offset
-    mov word[si+6],0x1000   ; segment -> 0x1000*16 + 0 = 0x10000 
-                            ; => to express large value like 0x10000
-    mov dword[si+8],6       ; address lo - 'dword' - Double word(4)
-    mov dword[si+0xc],0     ; address hi
-    ; --------------------- : End Def
-
-    mov dl,[DriveId]
-    mov ah,0x42
-    int 0x13
-    jc ReadError
-
-LoadUser:
-    mov si, ReadPacket
-    mov word[si],0x10       ; size - 'word' - word(2)
-    mov word[si+2],10       ; number of sectors
-    mov word[si+4],0        ; offset
-    mov word[si+6],0x2000   ; segment -> 0x1000*16 + 0 = 0x10000 
-                            ; => to express large value like 0x10000
-    mov dword[si+8],106     ; address lo - 'dword' - Double word(4)
-    mov dword[si+0xc],0     ; address hi
-
-    mov dl,[DriveId]
-    mov ah,0x42
-    int 0x13
-    jc ReadError
-
-LoadUser2:
-    mov si, ReadPacket
-    mov word[si],0x10       ; size - 'word' - word(2)
-    mov word[si+2],10       ; number of sectors
-    mov word[si+4],0        ; offset
-    mov word[si+6],0x3000   ; segment -> 0x1000*16 + 0 = 0x10000 
-                            ; => to express large value like 0x10000
-    mov dword[si+8],116     ; address lo - 'dword' - Double word(4)
-    mov dword[si+0xc],0     ; address hi
-
-    mov dl,[DriveId]
-    mov ah,0x42
-    int 0x13
-    jc ReadError
-
-
-LoadUser3:
-    mov si, ReadPacket
-    mov word[si],0x10       ; size - 'word' - word(2)
-    mov word[si+2],10       ; number of sectors
-    mov word[si+4],0        ; offset
-    mov word[si+6],0x4000   ; segment -> 0x1000*16 + 0 = 0x10000 
-                            ; => to express large value like 0x10000
-    mov dword[si+8],126     ; address lo - 'dword' - Double word(4)
-    mov dword[si+0xc],0     ; address hi
-
-    mov dl,[DriveId]
-    mov ah,0x42
-    int 0x13
-    jc ReadError
-
+    mov ax,0x2000
+    mov es,ax           ; es = 0x20000
 
 GetMemInfoStart:
     mov eax,0xe820      ; service name
     mov edx,0x534d4150  ; ascii code for smap
     mov ecx,20          ; length of memory block
-    mov dword[0x9000],0 ; initialize 4byte to 0
-    mov edi,0x9008      ; information stored in address 9008
+    mov dword[es:0],0   ; initialize 0x20000 4byte to 0
+
+    mov edi,8           ; es di pointing to 0x20008
     xor ebx,ebx
     int 0x15
     jc NotSupport       ; service e820 is not available
 
-GetMemInfo:
+GetMemInfo:                 ; check each block if it's free region
+    cmp dword[es:di+16],1   ; offset 16 : memory type -> if it not 1, it is not free region
+    jne Cont
+    cmp dword[es:di+4],0    ; offset 4 : higher part of address -> if is not zero, larger than 4GB
+    jne Cont
+    mov eax,[es:di]         ; lower part of address -> if is bigger than 0x30000000, it is not wanted region
+    cmp eax,0x30000000
+    ja Cont
+    cmp dword[es:di+12],0   ; higher part of length : larger than 4GB
+    jne Find
+    add eax,[es:di+8]       ; lower part of length : smaller than 100MB which is size of image
+    cmp eax,0x30000000 + 100*1024*1024
+    jb Cont
+
+Find:
+    mov byte[LoadImage],1   ; if it's 1, we found
+
+Cont:
     add edi,20
-    inc dword[0x9000]   ; count the number of getting memory block
+    inc dword[es:0]     ; count the number of getting memory block
     test ebx,ebx        ; if ebx is 0, it means that reach the end and jump to Done
     jz GetMemDone
 
@@ -103,6 +60,8 @@ GetMemInfo:
     jnc GetMemInfo      ; reach end of memory block
 
 GetMemDone:
+    cmp byte[LoadImage],1
+    jne ReadError
 
 TestA20:
     mov ax,0xffff
@@ -126,19 +85,120 @@ SetVideoMode:
 
     ; Set protect mode 
     cli             ; clear interrupt flag
-    lgdt [Gdt32Ptr] ; load gdt ptr -> 
-    lidt [Idt32Ptr] ; load idt ptr => invaild here => reset
+    lgdt [Gdt32Ptr] ; load gdt ptr
 
     mov eax,cr0     ; Entering protect mode
     or eax,1        ; Set first bit of cr0 to 1
     mov cr0,eax     ;
 
+LoadFS:             ; unlimit 4GB in FS
+    mov ax,0x10     ; move 16 to fs
+    mov fs,ax
+
+    mov eax,cr0     ; back to real mode
+    and al,0xfe
+    mov cr0,eax
+
+BigRealMode:
+    sti
+    mov cx,203*16*63/100    ; total 100 sector, cx act as a counter
+    xor ebx,ebx             ; clear bx
+    mov edi,0x30000000      ; address of high memory where we want to place file system
+    xor ax,ax               ; clear fs
+    mov fs,ax
+
+ReadFAT:
+    push ecx                ; save registers
+    push ebx
+    push edi
+    push fs
+    
+    mov ax,100
+    call ReadSectors
+    test al,al
+    jnz  ReadError
+
+    pop fs
+    pop edi
+    pop ebx
+
+    mov cx,512*100/4
+    mov esi,0x60000
+    
+CopyData:
+    mov eax,[fs:esi]
+    mov [fs:edi],eax
+
+    add esi,4
+    add edi,4
+    loop CopyData
+
+    pop ecx
+
+    add ebx,100
+    loop ReadFAT
+
+ReadRemainingSectors:
+    push edi
+    push fs
+
+    mov ax,(203*16*63) % 100
+    call ReadSectors
+    test al,al
+    jnz  ReadError
+
+    pop fs
+    pop edi
+    
+    mov cx,(((203*16*63) % 100) * 512)/4
+    mov esi,0x60000
+
+CopyRemainingData: 
+    mov eax,[fs:esi]
+    mov [fs:edi],eax
+
+    add esi,4
+    add edi,4
+    loop CopyRemainingData
+
+
+    cli
+    lidt [Idt32Ptr]
+
+    mov eax,cr0     ; switch to protected mode
+    or eax,1
+    mov cr0,eax
+
     jmp 8:PMEntry   ; To load code segment descriptor to cs register
                     ; 8 : index of selector
                     ; index = 00001 | TI = 0 | RPL = 00(== DPL) -> 8
 
+ReadSectors:
+    mov si,ReadPacket
+    mov word[si],0x10
+    mov word[si+2],ax
+    mov word[si+4],0
+    mov word[si+6],0x6000
+    mov dword[si+8],ebx
+    mov dword[si+0xc],0
+    mov dl,[DriveId]
+    mov ah,0x42
+    int 0x13
+    
+    setc al     ; set al 1 if carry flag is set
+    ret
+
+
 ReadError:
 NotSupport:
+    mov ah,0x13
+    mov al,1
+    mov bx,0xa
+    xor dx,dx
+    mov bp,Message
+    mov cx,MessageLen 
+    int 0x10
+
 End:
     hlt
     jmp End
@@ -159,7 +219,7 @@ PMEntry:
     mov ecx,0x10000/4
     rep stosd
     
-    mov dword[0x70000],0x71003  ; U | W | P = 0 1 1 == 3
+    mov dword[0x70000],0x71007  ; U | W | P = 1 1 1 == 7
                                 ; reason why we setted up to 7 is after we jump to ring3, 
                                 ; we accessed memory and write to screen buffer -> U should be 1 at that time
     mov dword[0x71000],10000111b; 7th bit to 1
@@ -167,7 +227,7 @@ PMEntry:
     mov eax,(0xffff800000000000>>39)
     and eax,0x1ff
     mov dword[0x70000+eax*8],0x72003
-    mov dword[0x72000],10000111b
+    mov dword[0x72000],10000011b
     ;-----------------------
 
     lgdt [Gdt64Ptr]     ; set gdt pointer
@@ -201,20 +261,25 @@ LMEntry:                ; Start of LONG_MODE
     mov rsp,0x7c00      ; init stack pointer
 
     cld                 ; clear direction flag : data is copied to forward direction
-    mov rdi,0x200000    ; destination address is stored in rdi
-    mov rsi,0x10000     ; source address is stored in rsi
-    mov rcx,51200/8     ; rcx as a counter => copy 51200 q-word byte(read 100 sectors which is 512B)
-    rep movsq           ; kernel is in 0x10000 and copied to 0x2000000
+    mov rdi,0x100000    ; destination address is stored in rdi
+    mov rsi,CModule     ; source address is stored in rsi
+    mov rcx,512*15/8    ; rcx as a counter => copy 512*15 q-word byte(read 100 sectors which is 512B)
+    rep movsq           ; kernel is in 0x10000 and copied to 0x1000000
 
-    mov rax,0xffff800000200000
+    mov rax,0xffff800000100000
     jmp rax        ; jump to kernel
 
 LEnd:
     hlt
     jmp LEnd
 
+
+Message:    db "We have an error in boot process"
+MessageLen: equ $-Message
+
 DriveId:    db 0
 ReadPacket: times 16 db 0
+LoadImage:  db 0
 
 Gdt32:
     dq 0        ; First Discriptor to NULL
@@ -268,3 +333,5 @@ Gdt64Len: equ $-Gdt64
 
 Gdt64Ptr: dw Gdt64Len-1
           dd Gdt64
+
+CModule:
