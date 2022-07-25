@@ -61,5 +61,6 @@ void exit(void);
 void wait(int pid);
 struct ProcessControl* get_pc(void);
 int fork(void);
+int exec(struct Process *process, char *name);
 
 #endif

@@ -10,6 +10,7 @@ global read_file
 global get_file_size
 global close_file
 global fork
+global exec
 
 writeu:
     sub rsp,16
@@ -140,4 +141,17 @@ fork:
     xor edi,edi
     int 0x80
 
+    ret
+
+exec:
+    sub rsp,8
+    mov eax,11
+
+    mov [rsp],rdi
+    mov rdi,1
+    mov rsi,rsp
+    
+    int 0x80
+
+    add rsp,8
     ret

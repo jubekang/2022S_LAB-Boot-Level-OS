@@ -4,4 +4,5 @@ extern main
 
 start:
     call main
+    call exitu
     jmp $

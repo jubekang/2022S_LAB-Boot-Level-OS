@@ -6,13 +6,18 @@ nasm -f elf64 -o lib.o lib.asm
 cp lib.a ../user1
 cp lib.a ../user2
 cp lib.a ../user3
+cp lib.a ../test
 rm lib.a
 rm *.o
 cd ..
 
 cd test
-nasm -f bin -o test.bin test.asm
+nasm -f elf64 -o start.o start.asm
+/usr/local/gcc-4.8.1-for-linux64/bin/x86_64-pc-linux-gcc -std=c99 -mcmodel=large -ffreestanding -fno-stack-protector -mno-red-zone -c main.c
+/usr/local/gcc-4.8.1-for-linux64/bin/x86_64-pc-linux-ld -nostdlib -Tlink.lds -o user start.o main.o lib.a 
+/usr/local/gcc-4.8.1-for-linux64/bin/x86_64-pc-linux-objcopy -O binary user test.bin
 mv test.bin ..
+rm *.o user
 cd ..
 
 cd user1

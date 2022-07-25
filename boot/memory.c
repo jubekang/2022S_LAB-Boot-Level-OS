@@ -278,7 +278,7 @@ void free_vm(uint64_t map)
     free_pdt(map);
     free_pdpt(map);
     free_pml4t(map);
-    printk("Freed VM");
+    /* printk("Freed VM"); */
 }
 
 bool copy_uvm(uint64_t dst_map, uint64_t src_map, int size)
