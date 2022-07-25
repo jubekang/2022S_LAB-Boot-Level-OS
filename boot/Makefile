@@ -1,6 +1,12 @@
 all:
 	./build.sh
-	bochs
+
+.PHONY: bin
+
+bin:
+	./build.sh
+	rm -rf *.o kernel
+	cp *.bin bin
 
 old:
 	./build_old.sh

@@ -3,19 +3,16 @@
 
 int main(void)
 {   
-    int fd;
-    int size;
-    char buffer[100] = {0};
+    int pid;
 
-    if((fd = open_file("TEST.BIN")) == -1){
-        printf("open file failed");
+    pid = fork();
+    if(pid == 0){
+        printf("this is new process\n");
     }
     else{
-        size = get_file_size(fd);
-        size = read_file(fd, buffer, size);
-        printf("%s\n", buffer);
-        printf("read %db in total", size);
+        printf("this is the current process\n");
+        waitu(pid);
     }
-    while(1){}
+
     return 0;
 }
