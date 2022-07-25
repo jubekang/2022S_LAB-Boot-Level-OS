@@ -2,9 +2,8 @@
 #include "stdarg.h"
 #include "print.h"
 #include "lib.h"
-#include "memory.h"
 
-static struct ScreenBuffer screen_buffer = {(char*)P2V(0xb8000), 0, 0};  /* 0, 0 for low,column */
+static struct ScreenBuffer screen_buffer = {(char*)(0xb8000), 0, 0};  /* 0, 0 for low,column */
 
 /* we use printk function in the ASSERT MACRO, we should not use assert here */
 

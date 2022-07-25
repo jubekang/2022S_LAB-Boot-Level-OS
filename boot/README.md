@@ -4,10 +4,8 @@
 
 2022년 개별연구 OSLAB
 
-$ make
-    
-    => build project and run bochs
+    $ make
+=> build project and run bochs
 
-$ make clean
-    
-    => clean *.bin *.o kernel binary file
+    $ make clean
+=> clean *.bin *.o kernel binary file
