@@ -1,3 +1,24 @@
+cd lib
+nasm -f elf64 -o syscall.o syscall.asm
+nasm -f elf64 -o lib.o lib.asm
+/usr/local/gcc-4.8.1-for-linux64/bin/x86_64-pc-linux-gcc -std=c99 -mcmodel=large -ffreestanding -fno-stack-protector -mno-red-zone -c print.c
+/usr/local/gcc-4.8.1-for-linux64/bin/x86_64-pc-linux-ar rcs lib.a print.o syscall.o lib.o
+cp lib.a ../user1
+cp lib.a ../user2
+cp lib.a ../user3
+rm lib.a
+rm *.o
+cd ..
+
+cd user1
+nasm -f elf64 -o start.o start.asm
+/usr/local/gcc-4.8.1-for-linux64/bin/x86_64-pc-linux-gcc -std=c99 -mcmodel=large -ffreestanding -fno-stack-protector -mno-red-zone -c main.c
+/usr/local/gcc-4.8.1-for-linux64/bin/x86_64-pc-linux-ld -nostdlib -Tlink.lds -o user start.o main.o lib.a 
+/usr/local/gcc-4.8.1-for-linux64/bin/x86_64-pc-linux-objcopy -O binary user user.bin
+mv user.bin ..
+rm *.o user
+cd ..
+
 cd loader
 nasm -f bin -o loader.bin loader.asm
 nasm -f elf64 -o entry.o entry.asm

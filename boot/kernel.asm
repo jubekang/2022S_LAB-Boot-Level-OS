@@ -97,9 +97,13 @@ InitPIC:        ; Programmable Interval Controller(PIT use IRQ0)
 
 KernelEntry:    ; jump to main function in C
 
+    xor ax,ax
+    mov ss,ax
+
     mov rsp,0xffff800000200000
     call KMain
 
 End:
+    sti
     hlt
     jmp End

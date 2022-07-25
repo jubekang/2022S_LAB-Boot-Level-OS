@@ -8,3 +8,6 @@ old:
 
 clean:
 	rm -rf *.bin *.o kernel
+
+cleano:
+	rm -rf *.o kernel

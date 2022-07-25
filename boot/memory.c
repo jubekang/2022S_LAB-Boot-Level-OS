@@ -15,8 +15,8 @@ extern char end;    /* declared in linker file : end of kernel */
 
 void init_memory(void)
 {
-    int32_t count = *(int32_t*)0x9000; /* why 0x9000? */
-    struct E820 *mem_map = (struct E820*)0x9008;	
+    int32_t count = *(int32_t*)0x20000; /* why 0x20000? */
+    struct E820 *mem_map = (struct E820*)0x20008;	
     int free_region_count = 0;
 
     ASSERT(count <= 50);
@@ -56,7 +56,7 @@ uint64_t get_total_memory(void)
 static void free_region(uint64_t v, uint64_t e)
 {
     for (uint64_t start = PA_UP(v); start+PAGE_SIZE <= e; start += PAGE_SIZE) {        
-        if (start+PAGE_SIZE <= 0xffff800040000000) {   /* This value is 1G above the base of kernel */         
+        if (start+PAGE_SIZE <= 0xffff800030000000) {   /* This value is 1G above the base of kernel */         
            kfree(start);
         }
     }
@@ -66,7 +66,7 @@ void kfree(uint64_t v)
 {
     ASSERT(v % PAGE_SIZE == 0); /* check if virtual address is aligned */
     ASSERT(v >= (uint64_t)&end); /* check if virtual address is not within the kernel */
-    ASSERT(v+PAGE_SIZE <= 0xffff800040000000); /* check 1G memory limit */ 
+    ASSERT(v+PAGE_SIZE <= 0xffff800030000000); /* check 1G memory limit */ 
 
     struct Page *page_address = (struct Page*)v;
     page_address->next = free_memory.next; /* when init? */
@@ -176,9 +176,10 @@ void switch_vm(uint64_t map)
 uint64_t setup_kvm(void)
 {
     uint64_t page_map = (uint64_t)kalloc(); /* allocate new free page */
+    
     if(page_map != 0){
         memset((void*)page_map, 0, PAGE_SIZE); /* zero the page */       
-        if(!map_pages(page_map, KERNEL_BASE, memory_end, V2P(KERNEL_BASE), PTE_P|PTE_W)){
+        if(!map_pages(page_map, KERNEL_BASE, P2V(0x40000000), V2P(KERNEL_BASE), PTE_P|PTE_W)){
             /* PML4 Table, start address, end address(kernel), physical address of kernel, Attribute(readable, writable, not accessible by user) */
             free_vm(page_map);
             page_map = 0;
