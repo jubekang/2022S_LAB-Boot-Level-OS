@@ -11,7 +11,7 @@ int main(void)
     }
     else{
         waitu(pid);
-        printf("test process exits\n");
+        printf("test process exits!\n");
     }
 
     return 0;

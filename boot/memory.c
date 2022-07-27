@@ -45,7 +45,7 @@ void init_memory(void)
     }
 
     memory_end = (uint64_t)free_memory.next+PAGE_SIZE;
-    printk("end of memory: %x\n",memory_end);   /* This memory_end should be align in 2MB */
+    //printk("end of memory: %x\n",memory_end);   /* This memory_end should be align in 2MB */
 }
 
 uint64_t get_total_memory(void)

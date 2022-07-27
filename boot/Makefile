@@ -6,7 +6,6 @@ all:
 bin:
 	./build.sh
 	rm -rf *.o kernel
-	mv *.bin bin
 
 old:
 	./build_old.sh

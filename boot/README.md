@@ -9,3 +9,5 @@
 
     $ make clean
 => clean *.bin *.o kernel binary file
+
+ELF 구조 공부?

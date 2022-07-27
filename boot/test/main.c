@@ -2,7 +2,7 @@
 
 int main(void)
 {
-    printf("test process starts~!\n");
+    printf("test process starts!\n");
     
     return 0;
 }

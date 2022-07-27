@@ -125,6 +125,8 @@ static uint32_t search_file(char *path)
 
     bool status = split_path(path, name, ext);
 
+    //printk("%s.%s\n", name, ext);
+
     if (status == true) {
         root_entry_count = get_root_directory_count();
         dir_entry = get_root_directory();
