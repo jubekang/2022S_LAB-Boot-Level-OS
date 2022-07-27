@@ -13,5 +13,7 @@ void close_file(int fd);
 int get_file_size(int fd);
 int fork(void);
 void exec(char *name);
+void read_root_directory(char *name);
+
 
 #endif

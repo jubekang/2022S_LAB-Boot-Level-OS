@@ -11,6 +11,7 @@ global get_file_size
 global close_file
 global fork
 global exec
+global keyboard_readu
 
 writeu:
     sub rsp,16
@@ -146,6 +147,19 @@ fork:
 exec:
     sub rsp,8
     mov eax,11
+
+    mov [rsp],rdi
+    mov rdi,1
+    mov rsi,rsp
+    
+    int 0x80
+
+    add rsp,8
+    ret
+
+read_root_directory:
+    sub rsp,8
+    mov eax,12
 
     mov [rsp],rdi
     mov rdi,1
