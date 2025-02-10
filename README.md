@@ -1,4 +1,4 @@
-# 2022 Personal Study in OSLAB
+# 2022 Individual Study in OSLAB
 
 small & simple OS from boot level to hardware driver
 
